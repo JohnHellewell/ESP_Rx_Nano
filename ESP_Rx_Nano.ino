@@ -6,27 +6,29 @@
 #include "driver/ledc.h"
 #include "secrets.h" //Wi-Fi credentials
 #include "accel_handler.h"
+#include "settings.h"
 
-#define SOFTWARE_VERSION "1.0.1"
+#define SOFTWARE_VERSION "1.1.1"
 
 #define SCL 7 
 #define SDA 6 
 
 //LED
 #define ONBOARD_LED 8
+bool led_on = true;
 
 //UDP
 WiFiUDP udp;
-const unsigned int localPort = 4241;  // Arbitrary port. Each robot should have its own port
+const unsigned int localPort = 4200;  
 char incomingPacket[255];
 
-#define CH1_PIN 1 
-#define CH2_PIN 2 
-#define CH3_PIN 3 
+#define CH1_PIN 3  //0
+#define CH2_PIN 2  //1
+#define CH3_PIN 1  //2
 
 unsigned long lastPacketReceived; //used to measure time
 bool connected = false;
-#define FAILSAFE_DISCONNECT 500 //how many milliseconds of time since no packets received to activate failsafe
+#define FAILSAFE_DISCONNECT 500 //how long (ms) before failsafe activates
 
 // Channels
 #define CH1_PWM LEDC_CHANNEL_1
@@ -76,7 +78,7 @@ void setup(void) {
   lastPacketReceived = millis();
 
   pinMode(ONBOARD_LED, OUTPUT);
-  digitalWrite(ONBOARD_LED, LOW);
+  digitalWrite(ONBOARD_LED, HIGH);
 
   setup_ESCs();
   
@@ -84,11 +86,9 @@ void setup(void) {
 
   xTaskCreate(AccelerometerTask, "AccelMonitor", 4096, NULL, 1, NULL);
 
-  connectToWiFi();
+  startAP();
 
   setup_OTA();
-
-  
 }
 
 // Utility to convert microseconds to 13-bit duty
@@ -99,9 +99,9 @@ uint32_t usToDuty(uint16_t pulse_us) {
 void setPWM(uint8_t channel, uint16_t pulse_us) {
   ledc_channel_t ch;
   switch (channel) {
-    case 0: ch = CH1_PWM; break;
-    case 1: ch = CH2_PWM; break;
-    case 2: ch = CH3_PWM; break;
+    case 1: ch = CH1_PWM; break;
+    case 2: ch = CH2_PWM; break;
+    case 3: ch = CH3_PWM; break;
     default: return; // invalid channel
   }
 
@@ -158,9 +158,9 @@ void setup_ESCs(){
   };
   ledc_channel_config(&ch3_conf);
 
-  setPWM(0, CH1_DEFAULT);
-  setPWM(1, CH2_DEFAULT);
-  setPWM(2, CH3_DEFAULT);
+  setPWM(1, CH1_DEFAULT);
+  setPWM(2, CH2_DEFAULT);
+  setPWM(3, CH3_DEFAULT);
 
   Serial.println("PWM channels started successfully");
 }
@@ -239,19 +239,28 @@ bool is_safe_killswitch_change(int v1, int v2, int v3, int mode){
 }
 
 void mix_and_write(){
-  int forward = ch2 - 1500;
-  int turn = ch1 - 1500;
+  int forward = ch2 - 1500; //500
+  int turn = ch1 - 1500; //500
   int weapon = ch3 - 1500;
 
-  if(flipped){ //reverses drive and weapon. Note: turning is always correct and does not need to be flipped
+  if(FLIPPED_CORRECTION_ENABLED && flipped){ //reverses drive and weapon. Note: turning is always correct and does not need to be flipped
     forward = -forward;
-    weapon = -weapon;
+
+    if(BIDIRECTION_WEAPON){
+      weapon = -weapon;
+    }
   }
 
+  int left_motor;
+  int right_motor;
+  int weapon_motor;
+
+  
   // Mixed motor signals
-  int left_motor = 1500 + forward + turn;
-  int right_motor = 1500 + forward - turn;
-  int weapon_motor = 1500 + weapon;
+  left_motor = 1500 + forward + turn;
+  right_motor = 1500 + forward - turn;
+  weapon_motor = 1500 + weapon;
+  
 
   // Clamp to PWM range
   left_motor = constrain(left_motor, 1000, 2000);
@@ -267,13 +276,23 @@ void mix_and_write(){
     left_motor = 2000 - (left_motor-1000);
   }
 
-  Serial.printf("Motor output: [%d, %d]\n", right_motor, left_motor);
+  if(MIXING_ENABLED){
+    Serial.printf("Motor output (mixed): [%d, %d]\n", right_motor, left_motor);
 
-  setPWM(0, right_motor);
-  setPWM(1, left_motor);
-  setPWM(2, weapon_motor);
-  
-}
+    setPWM(1, right_motor);
+    setPWM(2, left_motor);
+    setPWM(3, weapon_motor);
+  } else { //unmmixed
+    int new_ch1 = turn + 1500;
+    int new_ch2 = forward + 1500;
+    int new_weapon = weapon + 1500;
+    Serial.printf("Ch1 & Ch2 output: [%d, %d]\n", new_ch1, new_ch2);
+    
+    setPWM(1, new_ch1);
+    setPWM(2, new_ch2);
+    setPWM(3, new_weapon);
+
+  }
 
 void execute_package(int v1, int v2, int v3, int v4){
   if(v4 != 0 && v4 != 2 && v4 != 1){ //make sure valid killswitch signal is received. If not, activate killswitch and disable bot
@@ -343,6 +362,14 @@ void UDP_packet() {
       Serial.println("Connection established; receiving packets");
     }
 
+    if(led_on){
+      led_on = !led_on;
+      digitalWrite(ONBOARD_LED, LOW);
+    } else {
+      led_on = !led_on;
+      digitalWrite(ONBOARD_LED, HIGH);
+    }
+
     uint16_t* values = (uint16_t*)incomingPacket;
     int v1 = values[0];
     int v2 = values[1];
@@ -394,6 +421,24 @@ void setup_OTA(){
   Serial.println("OTA Ready");
 }
 
+void startAP(){ //begin access point
+
+  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+
+  // Set Tx power to max
+  WiFi.setTxPower(WIFI_POWER_19dBm);
+  
+  // Optional: print the IP address of the ESP32 AP
+  Serial.print("Access Point Started: ");
+  Serial.println(WIFI_SSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.softAPIP());
+
+  udp.begin(localPort);
+  Serial.println("UDP listening on port " + String(localPort));
+}
+
+/*
 //connects to Wi-Fi and begins UDP
 void connectToWiFi() { 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -418,30 +463,7 @@ void connectToWiFi() {
 
   udp.begin(localPort);
   Serial.println("UDP listening on port " + String(localPort));
-}
-
-/*
-void calibrateZ() {
-  Serial.println("Calibrating... Please keep the board flat and still.");
-  delay(2000);  // Give user time to settle the board
-
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-
-  float current_z = a.acceleration.z;
-
-  if(current_z > 5.0){
-    z_offset = 10.0 - current_z; //I used 10.0 instead of 9.8 , since flipping it upside down tends to overestimate gravity's pull
-  } else {
-    Serial.println("Unable to calibrate");
-  }
-
-  Serial.print("Calibration complete. Applied Z offset: ");
-  Serial.println(z_offset);
-} 
-*/
-
-
+} */
 
 void loop() {
   ArduinoOTA.handle(); //checks for incoming OTA programming
