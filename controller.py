@@ -119,10 +119,17 @@ def update(frame):
     bar_values = [latest_data["ch1"], latest_data["ch2"], latest_data["ch3"]]
     for bar, val in zip(bars, bar_values):
         bar.set_height(val)
+    
+    if ks == 0:
+        ks_label = "killswitch: safe mode"
+    elif ks == 2:
+        ks_label = "killswitch: battle mode"
+    else:
+        ks_label = f"killswitch: {ks}"  # fallback for other values
 
     # Update ks label (color based on value)
     ks_color = {0: "green", 1: "orange", 2: "red"}.get(ks, "black")
-    ks_text.set_text(f"ks: {ks}")
+    ks_text.set_text(ks_label)
     ks_text.set_color(ks_color)
 
     # Send to ESP32
