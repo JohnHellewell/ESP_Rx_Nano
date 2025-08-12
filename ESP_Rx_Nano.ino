@@ -238,7 +238,14 @@ bool is_safe_killswitch_change(int v1, int v2, int v3, int mode){
   }
 }
 
+void range_limits(){
+  ch1 = (int)((ch1-1500) * CH1_LIMIT) + 1500;
+  ch2 = (int)((ch2-1500) * CH2_LIMIT) + 1500;
+  ch3 = (int)((ch3-1500) * CH3_LIMIT) + 1500;
+}
+
 void mix_and_write(){
+  range_limits();
   if(INVERSE_CH1){
     ch1 = (-(ch1-1500))+1500;
   }
@@ -248,6 +255,7 @@ void mix_and_write(){
   if(INVERSE_CH3){
     ch3 = (-(ch3-1500))+1500;
   }
+
   int forward = ch2 - 1500; //500
   int turn = ch1 - 1500; //500
   int weapon = ch3 - 1500;
@@ -436,8 +444,8 @@ void setup_OTA(){
 void startAP(){ //begin access point
   WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
 
-  // Set Tx power to max
-  WiFi.setTxPower(WIFI_POWER_16dBm);
+  // Set Tx power
+  WiFi.setTxPower(WIFI_POWER_15dBm);
   
   // Optional: print the IP address of the ESP32 AP
   Serial.print("Access Point Started: ");
