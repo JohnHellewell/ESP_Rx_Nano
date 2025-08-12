@@ -434,11 +434,10 @@ void setup_OTA(){
 }
 
 void startAP(){ //begin access point
-
   WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
 
   // Set Tx power to max
-  WiFi.setTxPower(WIFI_POWER_19dBm);
+  WiFi.setTxPower(WIFI_POWER_16dBm);
   
   // Optional: print the IP address of the ESP32 AP
   Serial.print("Access Point Started: ");
@@ -449,33 +448,6 @@ void startAP(){ //begin access point
   udp.begin(localPort);
   Serial.println("UDP listening on port " + String(localPort));
 }
-
-/*
-//connects to Wi-Fi and begins UDP
-void connectToWiFi() { 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  // Set lower WiFi transmit power (e.g., 10 dBm)
-  WiFi.setTxPower(WIFI_POWER_20dBm); //lower the transmitter power by 95%. If robots have connection issues, try raising this
-
-  Serial.print("Connecting to WiFi Network ");
-  Serial.print(WIFI_SSID);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(250);
-    Serial.print(".");
-    pinMode(ONBOARD_LED, OUTPUT);
-    digitalWrite(ONBOARD_LED, HIGH);
-    delay(250);
-    pinMode(ONBOARD_LED, OUTPUT);
-    digitalWrite(ONBOARD_LED, LOW);
-  }
-  Serial.println("\nWiFi connected!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-
-  udp.begin(localPort);
-  Serial.println("UDP listening on port " + String(localPort));
-} */
 
 void loop() {
   ArduinoOTA.handle(); //checks for incoming OTA programming
