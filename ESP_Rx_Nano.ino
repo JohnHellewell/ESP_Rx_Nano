@@ -239,6 +239,15 @@ bool is_safe_killswitch_change(int v1, int v2, int v3, int mode){
 }
 
 void mix_and_write(){
+  if(INVERSE_CH1){
+    ch1 = (-(ch1-1500))+1500;
+  }
+  if(INVERSE_CH2){
+    ch2 = (-(ch2-1500))+1500;
+  }
+  if(INVERSE_CH3){
+    ch3 = (-(ch3-1500))+1500;
+  }
   int forward = ch2 - 1500; //500
   int turn = ch1 - 1500; //500
   int weapon = ch3 - 1500;
@@ -246,7 +255,7 @@ void mix_and_write(){
   if(FLIPPED_CORRECTION_ENABLED && flipped){ //reverses drive and weapon. Note: turning is always correct and does not need to be flipped
     forward = -forward;
 
-    if(BIDIRECTION_WEAPON){
+    if(BIDIRECTIONAL_WEAPON){
       weapon = -weapon;
     }
   }
@@ -293,6 +302,7 @@ void mix_and_write(){
     setPWM(3, new_weapon);
 
   }
+}
 
 void execute_package(int v1, int v2, int v3, int v4){
   if(v4 != 0 && v4 != 2 && v4 != 1){ //make sure valid killswitch signal is received. If not, activate killswitch and disable bot
@@ -388,6 +398,8 @@ void UDP_packet() {
     execute_package(CH1_DEFAULT, CH2_DEFAULT, CH3_DEFAULT, 0);
     mix_and_write();
     Serial.println("Connection dropped! Failsafe enabled");
+    digitalWrite(ONBOARD_LED, LOW);
+    led_on = false;
   }
 }
 

@@ -6,5 +6,9 @@ bool FLIPPED_CORRECTION_ENABLED = true; //when upside down, your driving is corr
 
 bool BIDIRECTIONAL_WEAPON = false; //set whether your spinning weapon (ch3) is bidirectional or not. It will spin the other way when robot
 
+//reverse settings
+bool INVERSE_CH1 = true;
+bool INVERSE_CH2 = true;
+bool INVERSE_CH3 = false;
 
 #endif
