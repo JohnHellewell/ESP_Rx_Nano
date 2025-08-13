@@ -240,9 +240,13 @@ bool is_safe_killswitch_change(int v1, int v2, int v3, int mode){
 }
 
 void range_limits(){
-  ch1 = (int)((ch1-1500) * CH1_LIMIT) + 1500;
-  ch2 = (int)((ch2-1500) * CH2_LIMIT) + 1500;
-  //ch3 = (int)((ch3-1500) * CH3_LIMIT) + 1500; FIXME
+  ch1 = constrain((int)((ch1-1500) * CH1_LIMIT) + 1500, 1000, 2000);
+  ch2 = constrain((int)((ch2-1500) * CH2_LIMIT) + 1500, 1000, 2000);
+  if(BIDIRECTIONAL_WEAPON){
+    ch3 = constrain((int)((ch3-1500) * CH3_LIMIT) + 1500, 1000, 2000);
+  } else {
+    ch3 = constrain((int)((ch3-1000) * CH3_LIMIT) + 1000, 1000, 2000);
+  }
 }
 
 void mix_and_write(){

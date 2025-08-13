@@ -9,8 +9,8 @@ bool BIDIRECTIONAL_WEAPON = false; //set whether your spinning weapon (ch3) is b
 
 
 //REVERSE: 
-bool INVERSE_CH1 = true; //if robot is turning the wrong way, invert this one
-bool INVERSE_CH2 = true; //if driving forwards/backwards is mixed up, invert this one
+bool INVERSE_CH1 = false; //if robot is turning the wrong way, invert this one
+bool INVERSE_CH2 = false; //if driving forwards/backwards is mixed up, invert this one
 bool INVERSE_CH3 = false; //if weapon is spinning wrong way (ONLY for bidirectional weapons)
 //If your weapon is spinning the wrong way and is NOT bidirectional, do either of the following:
 //  1) you can swap any 2 of the 3 wires connecting your weapon motor to the ESC
