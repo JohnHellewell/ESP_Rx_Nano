@@ -39,6 +39,7 @@ Step 4: Adjust settings to your needs
 
 Step 5: Python. Note: if you alrady have python installed, open "controller.py" with your perferred IDE
 - If you do not have Python, follow this tutorial for installing Python and PyCharm: https://www.youtube.com/watch?v=YagM_FuPLQU
+- open up Terminal or Command Prompt, and run "pip install pygame matplotlib"
 - Open the "controller.py" file in PyCharm. 
 - To connect to your robot: 
   - power on your ESP Rx Nano
