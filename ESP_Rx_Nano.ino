@@ -47,16 +47,17 @@ const bool SERVO_BOT = false; //true if bot is equipped with servo weapon, false
 
 const int CH1_DEFAULT = 1500; 
 const int CH2_DEFAULT = 1500;
-const int CH3_DEFAULT = 1500; //normally would be 1000 for weapon to be off. But ESC is set to bidirectional
+int CH3_DEFAULT = BIDIRECTIONAL_WEAPON ? 1500 : 1000;
+
 
 int ch1 = CH1_DEFAULT; 
 int ch2 = CH2_DEFAULT;
 int ch3 = CH3_DEFAULT; 
 int killswitch = 0; //0 is OFF (as in robots should be off), 1 is LIMITED (drive enabled, weapon disabled), 2 is ARMED (battle mode)
 
-bool right_motor_reverse = false;
-bool left_motor_reverse = true;
-bool weapon_reverse = false;
+//bool right_motor_reverse = false;
+//bool left_motor_reverse = true;
+//bool weapon_reverse = false;
 
 const int SAFE_VARIANCE = 25; //in order to switch from kill switch mode 0 to 1 or 2, channels must be this close to the default range
 
@@ -241,7 +242,7 @@ bool is_safe_killswitch_change(int v1, int v2, int v3, int mode){
 void range_limits(){
   ch1 = (int)((ch1-1500) * CH1_LIMIT) + 1500;
   ch2 = (int)((ch2-1500) * CH2_LIMIT) + 1500;
-  ch3 = (int)((ch3-1500) * CH3_LIMIT) + 1500;
+  //ch3 = (int)((ch3-1500) * CH3_LIMIT) + 1500; FIXME
 }
 
 void mix_and_write(){
@@ -252,13 +253,18 @@ void mix_and_write(){
   if(INVERSE_CH2){
     ch2 = (-(ch2-1500))+1500;
   }
-  if(INVERSE_CH3){
+  if(BIDIRECTIONAL_WEAPON && INVERSE_CH3){ 
     ch3 = (-(ch3-1500))+1500;
   }
 
   int forward = ch2 - 1500; //500
   int turn = ch1 - 1500; //500
-  int weapon = ch3 - 1500;
+  int weapon;
+  if(BIDIRECTIONAL_WEAPON){
+    weapon = ch3 - 1500;
+  } else {
+    weapon = ch3 - 1000;
+  }
 
   if(FLIPPED_CORRECTION_ENABLED && flipped){ //reverses drive and weapon. Note: turning is always correct and does not need to be flipped
     forward = -forward;
@@ -276,7 +282,11 @@ void mix_and_write(){
   // Mixed motor signals
   left_motor = 1500 + forward + turn;
   right_motor = 1500 + forward - turn;
-  weapon_motor = 1500 + weapon;
+  if(BIDIRECTIONAL_WEAPON){
+    weapon_motor = 1500 + weapon;
+  } else {
+    weapon_motor = 1000 + weapon;
+  }
   
 
   // Clamp to PWM range
@@ -284,7 +294,7 @@ void mix_and_write(){
   right_motor = constrain(right_motor, 1000, 2000);
   weapon_motor = constrain(weapon_motor, 1000, 2000);
 
-
+  /*
   if(right_motor_reverse){
     right_motor = 2000 - (right_motor-1000);
   }
@@ -292,6 +302,7 @@ void mix_and_write(){
   if(left_motor_reverse){
     left_motor = 2000 - (left_motor-1000);
   }
+  */
 
   if(MIXING_ENABLED){
     Serial.printf("Motor output (mixed): [%d, %d]\n", right_motor, left_motor);
@@ -302,12 +313,12 @@ void mix_and_write(){
   } else { //unmmixed
     int new_ch1 = turn + 1500;
     int new_ch2 = forward + 1500;
-    int new_weapon = weapon + 1500;
+    //int new_weapon = weapon + 1500;
     Serial.printf("Ch1 & Ch2 output: [%d, %d]\n", new_ch1, new_ch2);
     
     setPWM(1, new_ch1);
     setPWM(2, new_ch2);
-    setPWM(3, new_weapon);
+    setPWM(3, weapon_motor);
 
   }
 }

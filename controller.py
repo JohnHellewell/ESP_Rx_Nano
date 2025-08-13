@@ -5,8 +5,10 @@ import socket
 import struct
 import time
 import platform
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+matplotlib.use('TkAgg')
 
 # UDP Setup 
 ESP32_IP = "192.168.4.1"
@@ -20,8 +22,12 @@ dead_zone = 30
 # killswitch
 ks = 0
 
+def constrain(val, min_val, max_val):
+    return max(min(val, max_val), min_val)
+
 # weapon scaling
-weapon_scale = 0.4  # must be between 0.0 and 1.0
+weapon_scale = 1.0  # must be between 0.0 and 1.0
+weapon_scale = constrain(weapon_scale, 0.0, 1.0)
 
 # Detect OS for joystick mapping
 if platform.system() == "Linux":
@@ -37,7 +43,7 @@ else:
 
 # --- Plot setup ---
 channels = ["ch1", "ch2", "ch3"]
-values = [1500, 1500, 1500]
+values = [1500, 1500, 1000]
 fig, ax = plt.subplots()
 bars = ax.bar(channels, values, color="skyblue")
 ax.set_ylim(1000, 2000)
@@ -68,12 +74,10 @@ def scale_axis(value, flip):
     else:
         return int((value + 1) * 500 + 1000)
 
-def scale_axis_spinner(value, flip):
-    value = (value + 1) / 2
-    if flip:
-        return 1500 - int(value * 500 * weapon_scale)
-    else:
-        return 1500 + int(value * 500 * weapon_scale)
+def scale_axis_spinner(value): #shouldn't need a flip value, since all spinners need to go from 1000-2000. Bidirectional weapons will have settings changed on the board
+    #value = (value + 1) / 2 
+    value = remap(value, -1.0, 1.0, 0.0, 1.0) #maps the value between 0.0, 1.0
+    return 1000 + int(value * 1000 * weapon_scale)
 
 def check_dead_zone(a, b):
     a1 = abs(1500 - a)
@@ -84,7 +88,18 @@ def check_dead_zone(a, b):
         return a, b
 
 # Store latest joystick data
-latest_data = {"ch1": 1500, "ch2": 1500, "ch3": 1500, "lt": 1500, "ks": 0}
+latest_data = {"ch1": 1500, "ch2": 1500, "ch3": 1000, "lt": 1500, "ks": 0}
+
+def remap(value, old_min, old_max, new_min, new_max):
+    # Avoid division by zero
+    if old_max == old_min:
+        raise ValueError("Old min and max cannot be the same value")
+
+    # Map the value
+    new_value = (value - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
+    
+    # Clamp to new range
+    return max(min(new_value, new_max), new_min)
 
 # --- Joystick reading loop (runs in background via FuncAnimation) ---
 pressed = True
@@ -99,7 +114,7 @@ def update(frame):
 
     ch1 = scale_axis(raw_ch1, False)
     ch2 = scale_axis(raw_ch2, True)
-    ch3 = scale_axis_spinner(raw_ch3, True)
+    ch3 = scale_axis_spinner(raw_ch3)
     ch1, ch2 = check_dead_zone(ch1, ch2)
 
     # Killswitch logic
