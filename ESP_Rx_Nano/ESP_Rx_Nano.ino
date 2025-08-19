@@ -8,7 +8,7 @@
 #include "accel_handler.h"
 #include "settings.h"
 
-#define SOFTWARE_VERSION "1.1.1"
+#define SOFTWARE_VERSION "1.2.0"
 
 #define SCL 7 
 #define SDA 6 
@@ -22,9 +22,10 @@ WiFiUDP udp;
 const unsigned int localPort = 4200;  
 char incomingPacket[255];
 
-#define CH1_PIN 3  //0
-#define CH2_PIN 2  //1
-#define CH3_PIN 1  //2
+#define CH1_PIN 3  
+#define CH2_PIN 2  
+#define CH3_PIN 1  
+#define CH4_PIN 0
 
 unsigned long lastPacketReceived; //used to measure time
 bool connected = false;
@@ -34,6 +35,7 @@ bool connected = false;
 #define CH1_PWM LEDC_CHANNEL_1
 #define CH2_PWM LEDC_CHANNEL_2
 #define CH3_PWM LEDC_CHANNEL_3
+#define CH4_PWM LEDC_CHANNEL_4
 
 #define PWM_FREQ_HZ     50  // 50 Hz = 20 ms period
 #define PWM_RES_BITS    LEDC_TIMER_13_BIT  // 13-bit resolution
@@ -41,23 +43,21 @@ bool connected = false;
 #define PWM_MODE        LEDC_LOW_SPEED_MODE
 
 int DEFAULT_PWM_RANGE[2] = {1000, 2000};
-int SERVO_RANGE[2] = {500, 2500};
+int SERVO_RANGE[2] = EXTEND_SERVO_RANGE ? {500, 2500} : {1000, 2000};
 
 const bool SERVO_BOT = false; //true if bot is equipped with servo weapon, false if not
 
 const int CH1_DEFAULT = 1500; 
 const int CH2_DEFAULT = 1500;
 int CH3_DEFAULT = BIDIRECTIONAL_WEAPON ? 1500 : 1000;
+int CH4_DEFAULT = 1500; //need to change later
 
 
 int ch1 = CH1_DEFAULT; 
 int ch2 = CH2_DEFAULT;
 int ch3 = CH3_DEFAULT; 
+int ch4 = CH4_DEFAULT;
 int killswitch = 0; //0 is OFF (as in robots should be off), 1 is LIMITED (drive enabled, weapon disabled), 2 is ARMED (battle mode)
-
-//bool right_motor_reverse = false;
-//bool left_motor_reverse = true;
-//bool weapon_reverse = false;
 
 const int SAFE_VARIANCE = 25; //in order to switch from kill switch mode 0 to 1 or 2, channels must be this close to the default range
 
@@ -103,6 +103,7 @@ void setPWM(uint8_t channel, uint16_t pulse_us) {
     case 1: ch = CH1_PWM; break;
     case 2: ch = CH2_PWM; break;
     case 3: ch = CH3_PWM; break;
+    case 4: ch = CH4_PWM; break;
     default: return; // invalid channel
   }
 
@@ -159,9 +160,23 @@ void setup_ESCs(){
   };
   ledc_channel_config(&ch3_conf);
 
-  setPWM(1, CH1_DEFAULT);
-  setPWM(2, CH2_DEFAULT);
-  setPWM(3, CH3_DEFAULT);
+  // Channel 4 setup
+  ledc_channel_config_t ch4_conf = {
+    .gpio_num       = CH4_PIN,
+    .speed_mode     = PWM_MODE,
+    .channel        = CH4_PWM,
+    .intr_type      = LEDC_INTR_DISABLE,
+    .timer_sel      = PWM_TIMER,
+    .duty           = 0,
+    .hpoint         = 0
+  };
+  ledc_channel_config(&ch4_conf);
+
+  //NOTE: Maybe don't start these until connection is established?
+  //setPWM(1, CH1_DEFAULT);
+  //setPWM(2, CH2_DEFAULT);
+  //setPWM(3, CH3_DEFAULT);
+  //setPWM(4, CH4_DEFAULT);
 
   Serial.println("PWM channels started successfully");
 }
@@ -247,6 +262,13 @@ void range_limits(){
   } else {
     ch3 = constrain((int)((ch3-1000) * CH3_LIMIT) + 1000, 1000, 2000);
   }
+
+  if(ch4 > 1500){ //upper range
+    ch4 = constrain((int)((ch4-1500) * CH4_UPPER_LIMIT) + 1500, SERVO_RANGE[0], SERVO_RANGE[1]);
+  } else { //lower range
+    ch4 = constrain((int)((ch4-1500) * CH4_LOWER_LIMIT) + 1500, SERVO_RANGE[0], SERVO_RANGE[1]);
+  }
+  
 }
 
 void mix_and_write(){
@@ -259,6 +281,9 @@ void mix_and_write(){
   }
   if(BIDIRECTIONAL_WEAPON && INVERSE_CH3){ 
     ch3 = (-(ch3-1500))+1500;
+  }
+  if(INVERSE_CH4){
+    ch4 = (-(ch4-1500))+1500;
   }
 
   int forward = ch2 - 1500; //500
@@ -298,15 +323,7 @@ void mix_and_write(){
   right_motor = constrain(right_motor, 1000, 2000);
   weapon_motor = constrain(weapon_motor, 1000, 2000);
 
-  /*
-  if(right_motor_reverse){
-    right_motor = 2000 - (right_motor-1000);
-  }
-
-  if(left_motor_reverse){
-    left_motor = 2000 - (left_motor-1000);
-  }
-  */
+  
 
   if(MIXING_ENABLED){
     Serial.printf("Motor output (mixed): [%d, %d]\n", right_motor, left_motor);
@@ -314,6 +331,7 @@ void mix_and_write(){
     setPWM(1, right_motor);
     setPWM(2, left_motor);
     setPWM(3, weapon_motor);
+    setPWM(4, ch4);
   } else { //unmmixed
     int new_ch1 = turn + 1500;
     int new_ch2 = forward + 1500;
@@ -323,25 +341,26 @@ void mix_and_write(){
     setPWM(1, new_ch1);
     setPWM(2, new_ch2);
     setPWM(3, weapon_motor);
-
+    setPWM(4, ch4);
   }
 }
 
-void execute_package(int v1, int v2, int v3, int v4){
+void execute_package(int v1, int v2, int v3, int v4, int ks){
   if(v4 != 0 && v4 != 2 && v4 != 1){ //make sure valid killswitch signal is received. If not, activate killswitch and disable bot
       ch1 = CH1_DEFAULT;
       ch2 = CH2_DEFAULT;
       ch3 = CH3_DEFAULT;
       killswitch = 0;
       Serial.print("INVALID KILLSWITCH SIGNAL RECEIVED! received: ");
-      Serial.println(v4);
+      Serial.println(ks);
       return;
   }
   v1 = validate_range(v1, false);
   v2 = validate_range(v2, false);
-  v3 = validate_range(v3, SERVO_BOT);
+  v3 = validate_range(v3, false);
+  v4 = validate_range(v4, false);
 
-  switch(v4){
+  switch(ks){
     case 0: { //killswitch is ON; robot should be immobile
       killswitch=0;
       ch1 = CH1_DEFAULT;
@@ -349,10 +368,10 @@ void execute_package(int v1, int v2, int v3, int v4){
       ch3 = CH3_DEFAULT;
       break;
     }
-    case 1: { //limited movement: robot can drive, but weapon is disabled
+    case 1: { //limited movement: robot can drive, but weapon is disabled (Not used in ESP_Rx_Nano)
       if(killswitch == 0){
         //make sure robot is safe to start moving. 
-        if(!is_safe_killswitch_change(v1, v2, v3, v4)){
+        if(!is_safe_killswitch_change(v1, v2, v3, ks)){
           Serial.println("Robot will not move until drive joystick is at rest");
           return;
         }
@@ -362,12 +381,13 @@ void execute_package(int v1, int v2, int v3, int v4){
       ch1 = v1;
       ch2 = v2;
       ch3 = CH3_DEFAULT;
+      //servo stays
       break;
     }
     case 2: { //robot is enabled for battle mode
       if(killswitch == 0 || killswitch == 1){
         //make sure robot is safe to start moving. 
-        if(!is_safe_killswitch_change(v1, v2, v3, v4)){
+        if(!is_safe_killswitch_change(v1, v2, v3, ks)){
           Serial.println("Robot will not move until drive and weapon are at rest");
           return;
         }
@@ -376,6 +396,7 @@ void execute_package(int v1, int v2, int v3, int v4){
       ch1 = v1;
       ch2 = v2;
       ch3 = v3;
+      ch4 = v4;
       break;
     }
   }

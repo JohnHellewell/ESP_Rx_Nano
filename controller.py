@@ -35,11 +35,11 @@ if platform.system() == "Linux":
     AXIS_RIGHT_Y = 4
     AXIS_LEFT_TRIGGER = 2
     AXIS_RIGHT_TRIGGER = 5
-else:
-    AXIS_RIGHT_X = 2
-    AXIS_RIGHT_Y = 3
-    AXIS_LEFT_TRIGGER = 4
-    AXIS_RIGHT_TRIGGER = 5
+else: #windows
+    AXIS_RIGHT_X = 2 
+    AXIS_RIGHT_Y = 3 
+    AXIS_LEFT_TRIGGER = 4 
+    AXIS_RIGHT_TRIGGER = 5 
 
 # --- Plot setup ---
 channels = ["ch1", "ch2", "ch3"]
