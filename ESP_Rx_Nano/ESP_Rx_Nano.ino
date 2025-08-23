@@ -481,7 +481,7 @@ void startAP(){ //begin access point
   WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
 
   // Set Tx power
-  WiFi.setTxPower(WIFI_POWER_15dBm);
+  WiFi.setTxPower(WIFI_POWER_20dBm);
   
   // Optional: print the IP address of the ESP32 AP
   Serial.print("Access Point Started: ");
