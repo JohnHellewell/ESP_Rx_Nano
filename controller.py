@@ -75,7 +75,6 @@ def scale_axis(value, flip):
         return int((value + 1) * 500 + 1000)
 
 def scale_axis_spinner(value): #shouldn't need a flip value, since all spinners need to go from 1000-2000. Bidirectional weapons will have settings changed on the board
-    #value = (value + 1) / 2 
     value = remap(value, -1.0, 1.0, 0.0, 1.0) #maps the value between 0.0, 1.0
     return 1000 + int(value * 1000 * weapon_scale)
 

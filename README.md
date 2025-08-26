@@ -3,22 +3,19 @@ Code for the ESP Rx Nano board- Combat Robotics
 
 This is the BETA version. Many deliverables are yet to be implemented.
 
-In order to run the controller.py program, make sure you have the right libraries installed:
-
-```pip install pygame matplotlib```
 
 Instalation Instructions:
 Step 1: Get the Arduino IDE ready
-- Download the Arduino IDE
+- Download the Arduino IDE: https://www.arduino.cc/en/software/
 - Go to Tools → Board → Boards Manager
 - Search for "ESP32"
-- Install "esp32" by Espressif Systems. It may take a couple minutes
+- Install "esp32" by Espressif Systems
 
 Step 2: Get the code
 - Go to https://github.com/JohnHellewell/ESP_Rx_Nano 
 - Code → Download .zip
 - Extract the files onto your computer
-- Open the folder, and open the "ESP_Rx_Nano.ino" file using the Arduino IDE. All the other files in the folder will appear as tabs
+- Open the folder, and open the "ESP_Rx_Nano.ino" file using the Arduino IDE. 
 
 Step 3: Plug in & install
 - Plug in the ESP Rx Nano board to your computer with USB-C. 
