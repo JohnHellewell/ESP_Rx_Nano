@@ -3,6 +3,8 @@ Code for the ESP Rx Nano board- Combat Robotics
 
 This is the BETA version. Many deliverables are yet to be implemented.
 
+TUTORIAL: https://youtu.be/V3wffiuC35A
+
 
 Instalation Instructions:
 Step 1: Get the Arduino IDE ready
