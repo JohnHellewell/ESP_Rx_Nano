@@ -43,7 +43,7 @@ bool connected = false;
 #define PWM_MODE        LEDC_LOW_SPEED_MODE
 
 int DEFAULT_PWM_RANGE[2] = {1000, 2000};
-int SERVO_RANGE[2] = EXTEND_SERVO_RANGE ? {500, 2500} : {1000, 2000};
+int SERVO_RANGE[2] = {1000, 2000};
 
 const bool SERVO_BOT = false; //true if bot is equipped with servo weapon, false if not
 
@@ -72,6 +72,10 @@ AccelHandler* accelHandler;
 
 void setup(void) {
   Serial.begin(115200);
+
+  //if(EXTEND_SERVO_RANGE){
+  //  SERVO_RANGE = {500, 2500};
+  //} 
 
   Serial.print("Running software version ");
   Serial.println(SOFTWARE_VERSION);
@@ -346,10 +350,11 @@ void mix_and_write(){
 }
 
 void execute_package(int v1, int v2, int v3, int v4, int ks){
-  if(v4 != 0 && v4 != 2 && v4 != 1){ //make sure valid killswitch signal is received. If not, activate killswitch and disable bot
+  if(ks != 0 && ks != 2 && ks != 1){ //make sure valid killswitch signal is received. If not, activate killswitch and disable bot
       ch1 = CH1_DEFAULT;
       ch2 = CH2_DEFAULT;
       ch3 = CH3_DEFAULT;
+      ch4 = CH4_DEFAULT;
       killswitch = 0;
       Serial.print("INVALID KILLSWITCH SIGNAL RECEIVED! received: ");
       Serial.println(ks);
@@ -366,6 +371,7 @@ void execute_package(int v1, int v2, int v3, int v4, int ks){
       ch1 = CH1_DEFAULT;
       ch2 = CH2_DEFAULT;
       ch3 = CH3_DEFAULT;
+      //ch4 not needed, since servo shouldn't move when on safe mode
       break;
     }
     case 1: { //limited movement: robot can drive, but weapon is disabled (Not used in ESP_Rx_Nano)
@@ -428,9 +434,10 @@ void UDP_packet() {
     int v1 = values[0];
     int v2 = values[1];
     int v3 = values[2];
-    int v4 = values[3];
+    int v4 = 1500; //placeholder
+    int ks = values[3];
 
-    execute_package(v1, v2, v3, v4);
+    execute_package(v1, v2, v3, v4, ks);
     mix_and_write();
 
     bool received = true;
@@ -439,7 +446,7 @@ void UDP_packet() {
     udp.endPacket();
   } else if (connected && millis() - lastPacketReceived >= FAILSAFE_DISCONNECT) {
     connected = false;
-    execute_package(CH1_DEFAULT, CH2_DEFAULT, CH3_DEFAULT, 0);
+    execute_package(CH1_DEFAULT, CH2_DEFAULT, CH3_DEFAULT, CH4_DEFAULT, 0);
     mix_and_write();
     Serial.println("Connection dropped! Failsafe enabled");
     digitalWrite(ONBOARD_LED, LOW);
